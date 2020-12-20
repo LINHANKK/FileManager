@@ -134,7 +134,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         setContentView(R.layout.activity_main);
         checkPermission();
         initView();
-        updateData(getStoragePath(this, false) + "/amap1");
+        updateData(getStoragePath(this, false));
         FileUtils.KEY = "";
 
         //初始化控件
@@ -364,7 +364,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         new Thread(){
             @Override
             public void run() {
-                list = fileUtils.getListData(getStoragePath(MainActivity.this, false));
+                list = fileUtils.getListData(path);
                 allList.clear(); //清空
                 allList.addAll(list);   //复制集合
                 list = fileUtils.getGroupList(list); //二次排序
