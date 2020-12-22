@@ -4,7 +4,9 @@
 
 
 当接入到主板，或者其他设备时，需要签名文件
+
 具体：
+
 1.先在Mainfest文件中加入 android:sharedUserId="android.uid.system" ，加入到<manifest>标签中
   
 2.BUILD--build bundle/APK--BUILD APK--locale
