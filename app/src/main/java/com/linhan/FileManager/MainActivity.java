@@ -679,6 +679,11 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
     //U盘和本地存储切换
     public void toggle(View view) {
         List<String> uPath = USBPath.getUPath(this);
+        if (uPath.size() == 0) {
+            Toast.makeText(this,"未读取到U盘",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Log.e("Upath",uPath.toString());
         uPath.remove(0);
         String s1 = null;
         for (String s : uPath) {
