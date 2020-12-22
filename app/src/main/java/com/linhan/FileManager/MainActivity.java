@@ -54,8 +54,8 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
     private int asc = 1;                                            // 可以帮助在正序和倒序之间进行切换
     private boolean isUDrive = false;                               //是否为U盘
     private boolean isCut = false;                                  //是否剪切
-    public static final int T_DIR = 0;                              // 文件夹
-    public static final int T_FILE = 1;                             // 文件
+    public static final int T_DIR = 0;                              // 类型：文件夹
+    public static final int T_FILE = 1;                             // 类型：文件
     public static final int SORT_NAME = 0;                          //按名称排序
     public static final int SORT_DATE = 1;                          //按日期排序
     public static final int SORT_SIZE = 2;                          //按大小排序
@@ -532,11 +532,11 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
             Iterator<Integer> iterator = mAdapter.getSelectMap().keySet().iterator();
             while (iterator.hasNext()) {
                 int position = iterator.next();
-                String path = list.get(position).path;
+                String path = list.get(position).getPath();
                 copyMap.put(position, path);
             }
             Toast.makeText(this, copyMap.size() + "个项目已保存", Toast.LENGTH_SHORT).show();
-            //切换粘贴为激活状态
+            //切换粘贴为激活状态,改变其图标图案
             layout.setEnabled(true);
             img.setImageResource(R.drawable.ic_menu_paste_holo_light);
         }
@@ -556,7 +556,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                             Iterator<Integer> iterator = mAdapter.getSelectMap().keySet().iterator();
                             while(iterator.hasNext()) {
                                 int position = iterator.next();
-                                String path = list.get(position).path;
+                                String path = list.get(position).getPath();
                                 File file = new File(path);
                                 if (file.isFile()) {
                                     fileUtils.deleteFile(path);
@@ -580,23 +580,27 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 String path = (String)iterator.next();
                 File file = new File(path);
                 if (file.isFile()) {
-                    int res = fileUtils.pasteFile(currPath, new File(path));
-                    if (res == 1) {
+                    File hasFile = new File(currPath, file.getName());
+                    if (hasFile.exists()) { //判断是否已经存在，存在则不进行粘贴操作
                         Toast.makeText(this, "该文件已存在", Toast.LENGTH_SHORT).show();
-                    }else {
+                    } else {        //不存在则粘贴并判断是否剪切
+                        fileUtils.pasteFile(currPath, new File(path));
+                        //如果是剪切那么这里必须要删除文件夹和文件
+                        if (isCut) {
+                            deletePath(view);
+                            isCut = false;
+                        }
                         Toast.makeText(this, path + "文件粘贴成功", Toast.LENGTH_SHORT).show();
                     }
                 }
-                if (file.isDirectory()) {
+                if (file.isDirectory()) { //文件夹不做重复判断
                     fileUtils.pasteDir(currPath, new File(path));
-                }
-                //如果是剪切那么这里必须要删除文件夹和文件，之前剪切的如果是复制那就不进行处理了
-                if (isCut) {
-                    deletePath(view);
-                    isCut = false;
+                    if (isCut) {
+                        deletePath(view);
+                        isCut = false;
+                    }
                 }
             }
-
             copyMap.clear();
             updateData(currPath);
             layout.setEnabled(false);
@@ -606,7 +610,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         }
     }
 
-    //全选操作
+    //全选
     public void selectAll(View view) {
         mAdapter.getSelectMap().clear();
         for (int i = 0; i < list.size(); i++) {
@@ -615,7 +619,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         mAdapter.notifyDataSetChanged();
     }
 
-    //全不选操作
+    //取消
     public void selectNone(View view) {
         mAdapter.getSelectMap().clear();
         mAdapter.notifyDataSetChanged();
@@ -651,7 +655,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 }
             }
         }else {
-            Toast.makeText(this, "没有可粘帖的项目", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "没有可剪切的项目", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -717,7 +721,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                             Iterator<Integer> iterator = mAdapter.getSelectMap().keySet().iterator();
                             while(iterator.hasNext()) {
                                 int position = iterator.next();
-                                String path = list.get(position).path;
+                                String path = list.get(position).getPath();
                                 File file = new File(path);
                                 File destDir = new File(currPath + "/" + name);
                                 file.renameTo(destDir);
