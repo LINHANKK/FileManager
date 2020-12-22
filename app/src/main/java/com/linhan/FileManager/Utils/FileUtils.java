@@ -29,6 +29,11 @@ public class FileUtils {
     private FileAdapter adapter;
     private String pathFile = "";
 
+    /**
+     * 获取所有文件数据
+     * @param path
+     * @return
+     */
     public List<FileInfo> getListData(String path) {
         ArrayList<FileInfo> list = new ArrayList<>();
         File pFile = new File(path);
@@ -41,6 +46,7 @@ public class FileUtils {
             files = pFile.listFiles();
         }
 
+        Log.e("fileDARTA", files.length+"");
         if (files != null && files.length > 0) {
             for (int i = 0; i < files.length; i++){
                 File file = files[i];
@@ -69,9 +75,11 @@ public class FileUtils {
                     Date date = new Date(file.lastModified());
                     item.setTime(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(date));
                     list.add(item);
+                    Log.e("listData:",list.toString());
                 }
 
             }
+
         }
         files = null;
         return list;
@@ -99,7 +107,12 @@ public class FileUtils {
         return fileSize;
     }
 
-
+    /**
+     * 获取查询结果
+     * @param list
+     * @param keyword
+     * @return
+     */
     public List<FileInfo> getSearchResult(List<FileInfo> list, String keyword) {
         ArrayList<FileInfo> searchResultList = new ArrayList<FileInfo>();
         for(int i = 0; i < list.size(); i++) {

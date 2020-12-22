@@ -3,12 +3,8 @@ package com.linhan.FileManager;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-
 import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -31,11 +27,10 @@ import android.widget.RelativeLayout;
 import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.linhan.FileManager.Adapter.FileAdapter;
 import com.linhan.FileManager.Bean.FileInfo;
 import com.linhan.FileManager.Utils.FileUtils;
-
+import com.linhan.FileManager.Utils.USBPath;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -43,7 +38,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.Collator;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -51,47 +45,46 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements SearchView.OnQueryTextListener,FileAdapter.OnclickInterfaceFile{
+public class MainActivity extends AppCompatActivity implements SearchView.OnQueryTextListener,
+        FileAdapter.OnclickInterfaceFile, AdapterView.OnItemClickListener {
 
-    private boolean isCut = false;
-    public static final int T_DIR = 0;// 文件夹
-    public static final int T_FILE = 1;// 文件
-    public static final int SORT_NAME = 0;//按名称排序
-    public static final int SORT_DATE = 1;//按日期排序
-    public static final int SORT_SIZE = 2;//按大小排序
-    private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 99;
-    private static int currSort = SORT_DATE;//当前排序
-    private int asc = 1;// 可以帮助在正序和倒序之间进行切换
-    public String name = "";
     private final String ROOT = Environment.getExternalStorageDirectory().getAbsolutePath(); //根目录
+    private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 99;
     private final String[] sorts = new String[]{"名称", "日期", "大小"};
-    public List<FileInfo> list;
-    public ArrayList<FileInfo> allList = new ArrayList<FileInfo>();
-    HashMap<Integer, String> copyMap = new HashMap<Integer, String>();
+    private int asc = 1;                                            // 可以帮助在正序和倒序之间进行切换
+    private boolean isUDrive = false;                               //是否为U盘
+    private boolean isCut = false;                                  //是否剪切
+    public static final int T_DIR = 0;                              // 文件夹
+    public static final int T_FILE = 1;                             // 文件
+    public static final int SORT_NAME = 0;                          //按名称排序
+    public static final int SORT_DATE = 1;                          //按日期排序
+    public static final int SORT_SIZE = 2;                          //按大小排序
+    private static Comparator<FileInfo> comparator;                 //当前所使用的比较器
+    private static int currSort = SORT_DATE;                        //当前排序方式
+    public String name = "";                                        //命名
+    public List<FileInfo> list = new ArrayList<>();                 //存放文件数据
+    public ArrayList<FileInfo> allList = new ArrayList<FileInfo>();        //存放临时数据
+    HashMap<Integer, String> copyMap = new HashMap<Integer, String>();//复制文件结构
 
-    public ListView lv;
-    public ListView listView;
-    public LinearLayout layout;
-    public RelativeLayout relativeLayout;
-    public EditText text;
-    public ImageView img;
-    public ImageView img1;
-    public ImageView iv_asc;
-    public TextView tv_path;
-    public TextView sort;
-    public TextView count;
-    public TextView size;
-    public View view;
-    public String currPath; //当前目录
-    public String parentPath; //上级目录
-
-    public MenuItem search;
-    private SearchView sv;
-    private static Comparator<FileInfo> comparator;   //当前所使用的比较器
-
+    public ListView lv;                             //显示文件的listView
+    public LinearLayout layout;                     //底部栏的粘贴按钮
+    public RelativeLayout relativeLayout;           //整个底部栏
+    public EditText text;                           //创建文件或重命名时的命名文本
+    public ImageView img;                           //底部栏的粘贴按钮的图片底色，当粘贴激活时，改变颜色
+    public ImageView img1;                          //创建文件或重命名时的图标
+    public ImageView iv_asc;                        //排序图标
+    public ImageView iv_usb;                        //usb按钮的图标切换
+    public TextView tv_path;                        //当前路径显示
+    public TextView sort;                           //排序文本
+    public TextView count;                          //显示当前路径下的文件数
+    public TextView size;                           //显示当前路径下的所有文件数据大小
+    public TextView tv_usb;                         //usb按钮的文字切换
+    public View view;                               //绑定创建文件和重命名的layout
+    public String currPath;                         //当前路径
+    public String parentPath;                       //上级路径
+    public MenuItem search;                         //搜素按钮
     public FileAdapter mAdapter;
     private FileUtils fileUtils = new FileUtils();
-//    public ProgressDialog pd;
 
     // 日期比较器
     Comparator<FileInfo> dateComparator = new Comparator<FileInfo>() {
@@ -132,48 +125,30 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        checkPermission();
-        initView();
-        updateData(getStoragePath(this, false));
-        FileUtils.KEY = "";
-
-        //初始化控件
-        lv = findViewById(R.id.list);
         mAdapter = new FileAdapter(this);
-        mAdapter.setList(list);
+        checkPermission();
+        initView();                                                         //初始化视图
+        updateData(getStoragePath(this, false));       //获取数据
+        FileUtils.KEY = "";
         mAdapter.setOnclickInterfaceFile(this);
         lv.setAdapter(mAdapter);
-        mAdapter.notifyDataSetChanged();
-        sort = findViewById(R.id.sort);
-        count = findViewById(R.id.count);
-        size = findViewById(R.id.size);
-        iv_asc = findViewById(R.id.iv_asc);
-        layout = findViewById(R.id.pathclick);
-        img = findViewById(R.id.imgpath);
-        relativeLayout = findViewById(R.id.bottom);
-
+        lv.setOnItemClickListener(this);
         layout.setEnabled(false);
         updateData();
     }
 
     private void initView(){
         tv_path = findViewById(R.id.path);
-        listView = findViewById(R.id.list);
-        mAdapter = new FileAdapter(this);
-        listView.setAdapter(mAdapter);
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                FileInfo item = (FileInfo) parent.getItemAtPosition(position);
-                File file = new File(item.getPath());
-                // 判断文件/文件夹
-                if (item.getType() == T_DIR) {
-                    updateData(item.getPath());// 进入文件夹
-                } else {    // 是文件: 打开
-                    fileUtils.openFile(MainActivity.this, file);
-                }
-            }
-        });
+        lv = findViewById(R.id.list);
+        sort = findViewById(R.id.sort);
+        count = findViewById(R.id.count);
+        size = findViewById(R.id.size);
+        iv_asc = findViewById(R.id.iv_asc);
+        layout = findViewById(R.id.pathclick);
+        img = findViewById(R.id.imgpath);
+        iv_usb = findViewById(R.id.usbImage);
+        tv_usb = findViewById(R.id.usbText);
+        relativeLayout = findViewById(R.id.bottom);
     }
 
     @Override
@@ -190,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         return true;
     }
 
-    @Override
+    @Override       //菜单选项
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.sort_name) {
@@ -210,9 +185,15 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 public void onClick(DialogInterface dialog, int which) {
                     text = view.findViewById(R.id.name1);
                     name = text.getText().toString();
+                    if (name.length() < 1) {
+                        Toast.makeText(MainActivity.this, R.string.rename_empty, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     File destDir = new File(currPath + "/" + name);
                     if (!destDir.exists()) {
                         destDir.mkdirs();
+                    }else {
+                        Toast.makeText(MainActivity.this, R.string.exist_file, Toast.LENGTH_SHORT).show();
                     }
                     updateData(currPath);
                     mAdapter.notifyDataSetChanged();
@@ -231,6 +212,10 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 public void onClick(DialogInterface dialog, int which) {
                     text = view.findViewById(R.id.name1);
                     name = text.getText().toString();
+                    if (name.length() < 1) {
+                        Toast.makeText(MainActivity.this, R.string.rename_empty, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     File destDir = new File(currPath + "/" + name + ".txt");
                     if (!destDir.exists()) {
                         try {
@@ -255,6 +240,10 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 public void onClick(DialogInterface dialog, int which) {
                 text = view.findViewById(R.id.name1);
                 name = text.getText().toString();
+                if (name.length() < 1) {
+                    Toast.makeText(MainActivity.this, R.string.rename_empty, Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 File destDir = new File(currPath + "/" + name + ".xml");
                 if (!destDir.exists()) {
                     try {
@@ -279,6 +268,10 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                     public void onClick(DialogInterface dialog, int which) {
                         text = view.findViewById(R.id.name1);
                         name = text.getText().toString();
+                        if (name.length() < 1) {
+                            Toast.makeText(MainActivity.this, R.string.rename_empty, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                         File destDir = new File(currPath + "/" + name + ".doc");
                         if (!destDir.exists()) {
                             try {
@@ -303,6 +296,10 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                     public void onClick(DialogInterface dialog, int which) {
                         text = view.findViewById(R.id.name1);
                         name = text.getText().toString();
+                        if (name.length() < 1) {
+                            Toast.makeText(MainActivity.this, R.string.rename_empty, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                         File destDir = new File(currPath + "/" + name + ".xls");
                         if (!destDir.exists()) {
                             try {
@@ -320,6 +317,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         return super.onOptionsItemSelected(item);
     }
 
+    //获取内部存储路径
     private String getStoragePath(Context mContext, boolean is_removale) {
         String targetPath = "";
         StorageManager mStorageManager = (StorageManager) mContext.getSystemService(Context.STORAGE_SERVICE);
@@ -346,20 +344,21 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         return targetPath;
     }
 
+    //实时更新数据
     private void updateData(String path) {
         currPath = path; //记录当前的目录
         File file = new File(path);
         parentPath = file.getParent();  // 更新了上级目录
         mAdapter.getSelectMap().clear();
-        list = fileUtils.getListData(path); //获取数据
-
-        Log.e("listData",list.toString());
+        list = fileUtils.getListData(path);//获取数据
         list = fileUtils.getGroupList(list); //二次排序
         mAdapter.setList(list);
         mAdapter.notifyDataSetChanged(); //刷新视图
-        tv_path.setText(submitPath(path));
+        tv_path.setText(currPath);
+        update_infobar();
     }
 
+    //更新查询时的文件数据，新线程
     private void updateData1(String path) {
         new Thread(){
             @Override
@@ -376,9 +375,9 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 handler.sendMessage(message);
             }
         }.start();
-        //showProgressDialog();//显示进度框
     }
 
+    //启动新线程,处理耗时操作
     private void updateData() {
         new Thread(){
             @Override
@@ -395,11 +394,10 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 handler.sendMessage(message);
             }
         }.start();
-        //showProgressDialog();
     }
 
+    // 选择不同的比较器
     private void update_sort() {
-        // 选择不同的比较器
         if (currSort == SORT_NAME) {
             comparator = nameComparator;
         }
@@ -428,36 +426,17 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         size.setText((CharSequence)("大小: " + getListSize()));
     }
 
-    // 显示一个环形进度框
-//    public void showProgressDialog() {
-//        pd = new ProgressDialog(this);
-//        pd.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-//        pd.setTitle("系统信息");
-//        pd.setMessage("正在加载文件列表,请耐心等待...");
-//        pd.show();
-//    }
-
-    public String submitPath(String path) {
-        String str;
-        if (path.equals(ROOT)) {
-            str = "/";
-        }else {
-            str = currPath.substring(ROOT.length());
-        }
-        return str;
-    }
-
+    //获取文件大小
     private String getListSize() {
         Long sum = 0L;
         FileInfo app;
         for (Iterator<FileInfo> iterator = list.iterator(); iterator.hasNext(); sum += app.bytesize) {
             app = iterator.next();
         }
-
         return fileUtils.getSize((float)sum);
     }
 
-    @Override
+    @Override   //提交关键字
     public boolean onQueryTextSubmit(String query) {
         FileUtils.KEY = query.trim();
         list = fileUtils.getSearchResult(allList, query);//根据关键字生成结果
@@ -465,9 +444,10 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         return true;
     }
 
+    //切换正负倒序
     public void clickImg(View v) {
         update_sort();
-        asc *= 1;//切换正负倒序
+        asc *= 1;
     }
 
     @Override
@@ -478,8 +458,8 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         return true;
     }
 
+    //检查权限（NEED_PERMISSION）是否被授权 PackageManager.PERMISSION_GRANTED表示同意授权
     private final void checkPermission() {
-        //检查权限（NEED_PERMISSION）是否被授权 PackageManager.PERMISSION_GRANTED表示同意授权
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             //用户已经拒绝过一次，再次弹出权限申请对话框需要给用户一个解释
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission
@@ -494,7 +474,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         }
     }
 
-    @Override
+    @Override    //复选框的点击事件
     public void itemClick(int position) {
         //点击多选的实现
         if(mAdapter.getSelectMap().containsKey(position)) {
@@ -512,6 +492,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         mAdapter.notifyDataSetChanged();
     }
 
+    //退出时的对话框
     private void getExit() {
         new AlertDialog.Builder(this)
                 .setIcon(android.R.drawable.stat_sys_warning)
@@ -528,7 +509,13 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
     public void onBackPressed() {
         // 点击"回退"键
         if (currPath.equals(ROOT)) {
-            //退出app
+            //当返回到根目录时，退出app
+            getExit();
+        }else if (currPath.equals("/storage/700C-92EB")){
+            //当返回到U盘根目录时，退出app
+            getExit();
+        }else if (currPath.equals("/storage")){
+            //当返回到内置SD卡根目录时，退出app
             getExit();
         }else {
             updateData(parentPath);
@@ -597,16 +584,16 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                     if (res == 1) {
                         Toast.makeText(this, "该文件已存在", Toast.LENGTH_SHORT).show();
                     }else {
-                        Toast.makeText(this, path + "文件复制成功", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, path + "文件粘贴成功", Toast.LENGTH_SHORT).show();
                     }
+                }
+                if (file.isDirectory()) {
+                    fileUtils.pasteDir(currPath, new File(path));
                 }
                 //如果是剪切那么这里必须要删除文件夹和文件，之前剪切的如果是复制那就不进行处理了
                 if (isCut) {
                     deletePath(view);
                     isCut = false;
-                }
-                if (file.isDirectory()) {
-                    fileUtils.pasteDir(currPath, new File(path));
                 }
             }
 
@@ -649,16 +636,18 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
                 String path = (String)iterator1.next();
                 File file = new File(path);
                 if (file.isFile()) {
-                    int res = fileUtils.pasteFile(currPath, new File(path));
                     isCut = true;
                     Toast.makeText(this, path + "文件剪切成功", Toast.LENGTH_SHORT).show();
                     //切换粘贴为激活状态
                     layout.setEnabled(true);
                     img.setImageResource(R.drawable.ic_menu_paste_holo_light);
-                    Toast.makeText(this, path + "文件剪切成功", Toast.LENGTH_SHORT).show();
                 }
                 if (file.isDirectory()) {
-                    fileUtils.pasteDir(currPath, new File(path));
+                    isCut = true;
+                    Toast.makeText(this, path + "文件夹剪切成功", Toast.LENGTH_SHORT).show();
+                    //切换粘贴为激活状态
+                    layout.setEnabled(true);
+                    img.setImageResource(R.drawable.ic_menu_paste_holo_light);
                 }
             }
         }else {
@@ -666,6 +655,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         }
     }
 
+    //剪切删除
     public void deletePath(View view) {
         Iterator<String> iterator = copyMap.values().iterator();
         while (iterator.hasNext()) {
@@ -680,5 +670,74 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
         }
         mAdapter.getSelectMap().clear();
         updateData(currPath);
+    }
+
+    //U盘和本地存储切换
+    public void toggle(View view) {
+        List<String> uPath = USBPath.getUPath(this);
+        uPath.remove(0);
+        String s1 = null;
+        for (String s : uPath) {
+            s1 = s;
+        }
+        Log.d("U盘", s1);
+        if (isUDrive == false) {
+            iv_usb.setImageResource(R.drawable.local);
+            tv_usb.setText("本地");
+            updateData(s1);
+            isUDrive = true;
+        }else {
+            iv_usb.setImageResource(R.drawable.usb_drive);
+            tv_usb.setText("U盘");
+            updateData(getStoragePath(this, false));
+            isUDrive = false;
+        }
+    }
+
+    //重命名,后期需优化为单选
+    public void rename(View v) {
+        if (mAdapter.getSelectMap().size() == 0) {
+            Toast.makeText(this, "您还没选中任何项目！", Toast.LENGTH_SHORT).show();
+        }else {
+            LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            view = inflater.inflate(R.layout.layout, null);
+            new AlertDialog.Builder(this)
+                    .setTitle("重命名")
+                    .setView(view)
+                    .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            text = view.findViewById(R.id.name1);
+                            name = text.getText().toString();
+                            if(name.length() < 1){
+                                //如果用户输入为空
+                                Toast.makeText(MainActivity.this, R.string.rename_empty, Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            Iterator<Integer> iterator = mAdapter.getSelectMap().keySet().iterator();
+                            while(iterator.hasNext()) {
+                                int position = iterator.next();
+                                String path = list.get(position).path;
+                                File file = new File(path);
+                                File destDir = new File(currPath + "/" + name);
+                                file.renameTo(destDir);
+                            }
+                            updateData(currPath);
+                            mAdapter.notifyDataSetChanged();
+                        }
+                    }).setNegativeButton("取消", null).create().show();
+        }
+    }
+
+    @Override   //文件item点击事件
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        FileInfo item = (FileInfo) parent.getItemAtPosition(position);
+        File file = new File(item.getPath());
+        // 判断文件/文件夹
+        if (item.getType() == T_DIR) {
+            updateData(item.getPath());// 进入文件夹
+        } else {    // 是文件: 打开
+            fileUtils.openFile(MainActivity.this, file);
+        }
     }
 }

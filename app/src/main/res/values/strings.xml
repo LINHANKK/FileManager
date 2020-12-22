@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">FileManager</string>
+    <string name="rename_empty">命名不能为空</string>
+    <string name="exist_file">已存在同名文件</string>
 </resources>

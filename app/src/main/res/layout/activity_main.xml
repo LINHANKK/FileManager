@@ -32,10 +32,10 @@
 
             <ImageView
                 android:id="@+id/iv_asc"
+                android:onClick="clickImg"
                 android:src="@drawable/top_icon"
                 android:layout_width="20dp"
                 android:layout_height="20dp"/>
-                android:onClick="clickImg"
         </LinearLayout>
 
         <TextView
@@ -231,6 +231,49 @@
                     android:textColor="#d940a79d" />
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/rename"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="60dp"
+                android:onClick="rename"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/rename" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="重命名"
+                    android:textColor="#d940a79d" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/usbDrive"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="60dp"
+                android:onClick="toggle"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/usbImage"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/usb_drive" />
+
+                <TextView
+                    android:id="@+id/usbText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="U盘"
+                    android:textColor="#d940a79d" />
+            </LinearLayout>
 
         </LinearLayout>
 
